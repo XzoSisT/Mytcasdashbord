@@ -1,23 +1,23 @@
 # 🎓 Thai University Tuition Dashboard
 
-แดชบอร์ดนี้เป็นเครื่องมือสำหรับดูข้อมูลค่าใช้จ่ายของหลักสูตรในระบบ [MyTCAS](https://course.mytcas.com/) โดยเฉพาะหลักสูตรด้าน **วิศวกรรมคอมพิวเตอร์**, **วิศวกรรมปัญญาประดิษฐ์** และสาขาที่เกี่ยวข้อง สร้างด้วย [Dash by Plotly](https://dash.plotly.com/) เพื่อให้นักเรียนที่กำลังจะเข้ามหาวิทยาลัยในปีถัดไป สามารถดูข้อมูลและตัดสินใจเลือกหลักสูตรได้ง่ายขึ้น
+This dashboard provides an interactive tool to explore tuition fee information of academic programs listed on the [MyTCAS](https://course.mytcas.com/) platform — with a focus on **Computer Engineering**, **Artificial Intelligence Engineering**, and related programs. Built with [Dash by Plotly](https://dash.plotly.com/), this tool is especially useful for high school students who plan to apply to universities in Thailand.
 
 ---
 
-## 📚 คุณสมบัติ (Features)
+## 📚 Features
 
-- ดึงข้อมูลหลักสูตรและค่าใช้จ่ายจากเว็บไซต์ MyTCAS ผ่าน web scraping
-- ทำความสะอาดและประมวลผลข้อมูลค่าใช้จ่ายให้อยู่ในรูปแบบที่เข้าใจง่าย
-- แสดงข้อมูลผ่านแดชบอร์ดที่สามารถโต้ตอบได้ (Interactive Dashboard)
-- กรองข้อมูลหลักสูตรตามประเภทและช่วงราคาที่สนใจ
-- แสดงกราฟแท่ง (Bar Chart) และกราฟวงกลม (Pie Chart) แบบ interactive
-- ตารางข้อมูลที่สามารถค้นหาและกรองได้สะดวก
+- Scrape academic program and tuition fee data directly from the MyTCAS website
+- Clean and process tuition data into a user-friendly format
+- Interactive dashboard with real-time filtering and visualization
+- Filter programs by type, language, and tuition cost range
+- Visualizations include interactive bar charts and pie charts
+- Searchable and filterable data table for detailed inspection
 
 ---
 
-## ⚙️ วิธีใช้งาน
+## ⚙️ How to Use
 
-### 1. เตรียม environment และติดตั้ง dependencies
+### 1. Set up the environment and install dependencies
 
 ```bash
 git clone https://github.com/your-username/tuition-dashboard.git
@@ -25,10 +25,10 @@ cd tuition-dashboard
 
 python -m venv venv
 
-# Windows
+# On Windows
 venv\Scripts\activate
 
-# macOS/Linux
+# On macOS/Linux
 source venv/bin/activate
 
 pip install -r requirements.txt
@@ -39,3 +39,5 @@ python scrape_tuition.py
 python clean_data.py
 
 python app.py
+
+Open your browser at http://127.0.0.1:8050
