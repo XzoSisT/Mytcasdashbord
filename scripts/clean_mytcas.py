@@ -99,5 +99,9 @@ def clean_fee_column(df, fee_column="ค่าใช้จ่าย", program_co
 # ใช้งาน
 df = pd.read_excel("data/tuition_fees.xlsx")
 df_clean = clean_fee_column(df)
+df_clean = df_clean[
+    df_clean["ค่าใช้จ่ายต่อภาคการศึกษา (ประมาณ)"].notnull() &
+    df_clean["ค่าใช้จ่ายตลอดหลักสูตร (ประมาณ)"].notnull()
+]
 df_clean.to_excel("data/tuition_cleaned.xlsx", index=False)
 print("✅ บันทึกไฟล์แล้วที่: tuition_cleaned.xlsx")
