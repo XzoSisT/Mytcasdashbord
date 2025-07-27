@@ -97,7 +97,7 @@ def clean_fee_column(df, fee_column="ค่าใช้จ่าย", program_co
     return df
 
 # ใช้งาน
-df = pd.read_excel("tuition_fees.xlsx")
+df = pd.read_excel("data/tuition_fees.xlsx")
 df_clean = clean_fee_column(df)
-df_clean.to_excel("tuition_cleaned.xlsx", index=False)
+df_clean.to_excel("data/tuition_cleaned.xlsx", index=False)
 print("✅ บันทึกไฟล์แล้วที่: tuition_cleaned.xlsx")

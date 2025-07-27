@@ -7,7 +7,7 @@ import re
 # ---------- CONFIG ---------- #
 KEYWORDS = ["วิศวกรรมคอมพิวเตอร์", "วิศวกรรมปัญญาประดิษฐ์"]
 BASE_URL = "https://course.mytcas.com"
-OUTPUT_FILE = "tuition_fees.xlsx"
+OUTPUT_FILE = "data/tuition_fees.xlsx"
 
 # ---------- FUNCTION DEFINITIONS ---------- #
 def load_existing_links(output_file):
