@@ -2,5 +2,6 @@ playwright
 pandas
 BeautifulSoup
 dash
+dash-bootstrap-components
 plotly
 openpyxl
