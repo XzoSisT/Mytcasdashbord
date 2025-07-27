@@ -1,105 +1,114 @@
+from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
-import time
+import pandas as pd
 import re
-import openpyxl
+import time
 
-def extract_program_info(text):
-    # แยกชื่อสาขา คณะ และมหาวิทยาลัยออกจากข้อความที่รวมกัน
-    parts = text.replace('\n', ' ').split('›')
-    try:
-        title_part = parts[0].strip()
-        faculty_and_university = parts[1].strip().split()
+keywords = ["วิศวกรรมคอมพิวเตอร์", "วิศวกรรมปัญญาประดิษฐ์"]
+base_url = "https://course.mytcas.com"
+output_file = "tuition_fees.xlsx"
+all_programs = []
 
-        faculty = faculty_and_university[0] if len(faculty_and_university) > 0 else "ไม่พบคณะ"
-        university = faculty_and_university[-1] if len(faculty_and_university) > 0 else "ไม่พบมหาวิทยาลัย"
-        return title_part, faculty, university
-    except:
-        return text.strip(), "ไม่พบคณะ", "ไม่พบมหาวิทยาลัย"
+# ดึงข้อมูลเดิมจาก Excel (ถ้ามี)
+try:
+    existing_df = pd.read_excel(output_file)
+    existing_links = set(existing_df["ลิงค์"].tolist())
+except FileNotFoundError:
+    existing_df = pd.DataFrame()
+    existing_links = set()
 
-def extract_tuition_from_program(page, url):
-    full_url = f"https://course.mytcas.com{url}"
-    page.goto(full_url)
-    page.wait_for_load_state("networkidle")
-    time.sleep(1)
+# ฟังก์ชันหาค่าใช้จ่ายจาก <dt> + <dd>
+def extract_fee_from_dt_dd(soup):
+    dt_tags = soup.find_all("dt")
+    for dt in dt_tags:
+        if "ค่าใช้จ่าย" in dt.get_text(strip=True):
+            dd = dt.find_next_sibling("dd")
+            if dd:
+                fee_line = dd.get_text(strip=True)
+                return fee_line
+    return None
 
-    try:
-        body_text = page.inner_text("body")
-        match = re.search(r"(?:ค่าใช้จ่าย|ค่าเทอม)[^:\n]*[:\s]*([\d,]+)\s*บาท", body_text)
-        if match:
-            return match.group(1) + " บาท"
-        else:
-            fallback = re.search(r"([\d,]+)\s*บาท", body_text)
-            return fallback.group(1) + " บาท" if fallback else "ไม่พบ"
-    except:
-        return "ดึงข้อมูลล้มเหลว"
+# ฟังก์ชัน fallback หากไม่มี <dt> + <dd>
+def extract_fee_text(tag):
+    if not tag:
+        return "ไม่พบ"
+    full_text = tag.get_text(separator="\n", strip=True)
+    lines = full_text.splitlines()
+    matched_lines = [line for line in lines if ("ค่าใช้จ่าย" in line or "ค่าเทอม" in line) and re.search(r"\d[\d,\.]*\s*บาท", line)]
+    if matched_lines:
+        return " / ".join(matched_lines)
+    fallback_lines = [line for line in lines if re.search(r"\d[\d,\.]*\s*บาท", line)]
+    return " / ".join(fallback_lines) if fallback_lines else "ไม่พบ"
 
-def search_and_extract_all():
-    results_data = []
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    page = browser.new_page()
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto("https://course.mytcas.com/")
+    for keyword in keywords:
+        print(f"🔍 ค้นหา: {keyword}")
+        page.goto(base_url, wait_until="networkidle")
         page.wait_for_selector("input#search")
 
         search_input = page.locator("input#search")
         search_input.click()
-        search_input.type("วิศวกรรมคอมพิวเตอร์", delay=100)
+        search_input.type(keyword, delay=100)
         time.sleep(1.5)
         search_input.press("ArrowDown")
         search_input.press("Enter")
-
-        page.wait_for_load_state("networkidle")
         time.sleep(2)
 
-        # ✅ เก็บข้อมูลทั้งหมดล่วงหน้า (ก่อน navigate)
-        links = page.locator("li > a[href^='/programs/']")
-        count = links.count()
-        print(f"พบหลักสูตรทั้งหมด: {count}")
+        content = page.inner_html("ul.t-programs")
+        soup = BeautifulSoup(content, "html.parser")
 
-        entries = []
-        for i in range(count):
-            link = links.nth(i)
-            href = link.get_attribute("href")
-            text = link.inner_text().strip().replace('\n', ' ')
-            entries.append((text, href))
+        for li in soup.find_all("li"):
+            try:
+                a_tag = li.find("a")
+                href = a_tag["href"]
+                full_url = base_url + href
 
-        # ✅ ดึงค่าเทอมจากแต่ละหน้าหลักสูตร
-        for text, href in entries:
-            title, faculty, university = extract_program_info(text)
-            tuition = extract_tuition_from_program(page, href)
+                if full_url in existing_links:
+                    continue  # ข้ามถ้าเคยดึงมาแล้ว
 
-            print(f"\n📘 {title}")
-            print(f"🏫 {faculty} - {university}")
-            print(f"🔗 https://course.mytcas.com{href}")
-            print(f"💰 ค่าเทอม: {tuition}")
+                title = li.find("h3").get_text(strip=True)
+                faculty = li.find("b").get_text(" ", strip=True)
+                university = li.find_all("span")[-1].get_text(strip=True)
 
-            results_data.append({
-                "ชื่อหลักสูตร": title,
-                "คณะ": faculty,
-                "มหาวิทยาลัย": university,
-                "ลิงก์": f"https://course.mytcas.com{href}",
-                "ค่าเทอม": tuition
-            })
+                # เข้าไปยังหน้าหลักสูตร
+                page.goto(full_url, wait_until="networkidle")
+                time.sleep(1)
 
-        browser.close()
+                html = page.content()
+                soup_detail = BeautifulSoup(html, "html.parser")
 
-    return results_data
+                # หาค่าเทอม
+                fee_text = extract_fee_from_dt_dd(soup_detail)
+                if not fee_text:
+                    fee_tag = soup_detail.find(lambda tag: tag.name in ["div", "section", "td", "p"]
+                                               and any(kw in tag.get_text() for kw in ["ค่าใช้จ่าย", "ค่าเทอม"]))
+                    fee_text = extract_fee_text(fee_tag)
 
-def save_to_excel(data, filename="tuition_fees.xlsx"):
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Tuition Data"
+                all_programs.append({
+                    "หลักสูตร": title,
+                    "มหาวิทยาลัย": university,
+                    "คณะ": faculty,
+                    "ลิงค์": full_url,
+                    "ค่าใช้จ่าย": fee_text.strip() if fee_text else "ไม่พบ"
+                })
+                print(f"✅ ดึงข้อมูล: {title} - {university}")
 
-    # เขียนหัวตาราง
-    ws.append(["ชื่อหลักสูตร", "คณะ", "มหาวิทยาลัย", "ลิงก์", "ค่าเทอม"])
+            except Exception as e:
+                print(f"❌ เกิดข้อผิดพลาด: {e}")
+                continue
 
-    for row in data:
-        ws.append([row["ชื่อหลักสูตร"], row["คณะ"], row["มหาวิทยาลัย"], row["ลิงก์"], row["ค่าเทอม"]])
+    browser.close()
 
-    wb.save(filename)
-    print(f"\n📄 บันทึกข้อมูลแล้วที่: {filename}")
+# รวมกับข้อมูลเก่า
+new_df = pd.DataFrame(all_programs)
+if not existing_df.empty:
+    final_df = pd.concat([existing_df, new_df], ignore_index=True)
+else:
+    final_df = new_df
 
-if __name__ == "__main__":
-    results = search_and_extract_all()
-    save_to_excel(results)
+# บันทึกลง Excel
+final_df.to_excel(output_file, index=False)
+print(f"\n📄 บันทึกข้อมูลทั้งหมดแล้วที่: {output_file}")
